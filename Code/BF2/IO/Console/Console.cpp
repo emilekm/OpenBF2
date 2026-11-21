@@ -1592,6 +1592,10 @@ bool OldConsole::run(const std::string& filePath,
                    static_cast<IFileSystem::FileAccess>(0), 2))
     {
         result = "Could not open file: " + fileName + "!";
+        // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision] Shows scripts that
+        // silently fail to load during a level load.
+        std::fprintf(stderr, "[TEMP][NETID] run failed: %s\n", fileName.c_str());
+        std::fflush(stderr);
         return false;
     }
 

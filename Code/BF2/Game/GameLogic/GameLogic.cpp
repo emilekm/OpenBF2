@@ -1417,6 +1417,16 @@ void GameLogic::addPreStoredTemplate(unsigned int templateId, unsigned int count
 bool GameLogic::preCacheSpawnedTemplates()
 {
     std::set<const world::IObjectTemplate*> templates;
+    // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision]
+    std::fprintf(stderr, "[TEMP][NETID] preCacheSpawnedTemplates kits=%u soldiers=%u\n",
+                 static_cast<unsigned>(m_kits.size()), static_cast<unsigned>(m_soldierSkins.size()));
+    for (std::map<int, std::string>::const_iterator it = m_kits.begin(); it != m_kits.end(); ++it)
+        if (!world::objectTemplateManager->getTemplate(it->second))
+            std::fprintf(stderr, "[TEMP][NETID] kit template missing: %s\n", it->second.c_str());
+    for (std::map<int, std::string>::const_iterator it = m_soldierSkins.begin();
+         it != m_soldierSkins.end(); ++it)
+        if (!world::objectTemplateManager->getTemplate(it->second))
+            std::fprintf(stderr, "[TEMP][NETID] soldier template missing: %s\n", it->second.c_str());
 
     for (std::map<int, std::string>::const_iterator it = m_kits.begin(); it != m_kits.end(); ++it)
     {
@@ -2946,6 +2956,9 @@ void GameLogic::setKit(int team, int kit,
                        const std::string& soldierTemplate)
 {
     const int key = kit + (team << 8);
+    // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision]
+    std::fprintf(stderr, "[TEMP][NETID] setKit team=%d kit=%d template=%s soldier=%s\n",
+                 team, kit, kitTemplate.c_str(), soldierTemplate.c_str());
 
     std::map<int, std::string>::iterator k = m_kits.find(key);          // +0x1C
     if (k == m_kits.end())
