@@ -2435,6 +2435,10 @@ void GameLogic::createPreStoredObjects()
         {
             world::IObjectTemplate* tmpl =
                 world::objectTemplateManager->getTemplate(it->first);    // +0x60, BY ID
+            // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision] The pre-store
+            // list, to compare its counts with PR's server.
+            std::fprintf(stderr, "[TEMP][NETID] prestore template=%s count=%u\n",
+                         tmpl ? tmpl->getName().c_str() : "?", it->second);
             for (unsigned int n = 0; n < it->second; ++n)
                 game->createAndDestroyObject(tmpl);                      // IGame +0x80
         }
