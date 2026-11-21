@@ -1599,6 +1599,12 @@ bool OldConsole::run(const std::string& filePath,
         return false;
     }
 
+    // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision] Shows which scripts a
+    // level load runs and the arguments they receive.
+    std::fprintf(stderr, "[TEMP][NETID] run: %s arg1=[%s] arg2=[%s]\n",
+                 fileName.c_str(), arg1.c_str(), arg2.c_str());
+    std::fflush(stderr);
+
     // Recorded before the access decision below, and consumed later by handleCommand.
     m_fromArchive = fileManager ? fileManager->isLastFileOpenedFromArchive() : false;
 
@@ -1756,8 +1762,15 @@ bool OldConsole::include(const std::string& file,
             return true;
 
         result = "Could not open file: " + fileName + "!";
+        // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision]
+        std::fprintf(stderr, "[TEMP][NETID] include failed: %s\n", fileName.c_str());
+        std::fflush(stderr);
         return false;
     }
+    // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision]
+    std::fprintf(stderr, "[TEMP][NETID] include: %s arg1=[%s] arg2=[%s]\n",
+                 fileName.c_str(), arg1.c_str(), arg2.c_str());
+    std::fflush(stderr);
 
     const int fileSize = f.getSize();
     if (fileSize > 0)
