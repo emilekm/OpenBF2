@@ -830,8 +830,18 @@ void GameServer::findNetworkableObjects()
     {
         io::INetworkable* networkable = it->second->getNetworkable();  // IObject slot 54 (+0xD8)
         if (networkable && networkable->m_networkableId == 0)           // the word at +0x04
+        {
             io::networkManager->addNetworkable(networkable);
+            // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision] Lists the
+            // map-load network ids so they can be compared with the joining client's. Remove once
+            // the "Networkable already added" join failure is explained.
+            const world::IObjectTemplate* templ = it->second->getTemplate();
+            std::fprintf(stderr, "[TEMP][NETID] load objectId=%u netId=%u template=%s\n",
+                         it->first, networkable->m_networkableId,
+                         templ ? templ->getName().c_str() : "?");
+        }
     }
+    std::fflush(stderr);
 }
 
 // clientLoadLevel - ELF 0x80B21C0, 9 bytes: a tail-call forwarder. sendClientMapInfo - ELF

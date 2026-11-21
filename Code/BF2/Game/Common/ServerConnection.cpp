@@ -44,6 +44,7 @@
 #include "../../Core/Debug.h"                 // the attested line-98 "Control object not found"
 #include <cstdlib>                            // std::abort - the shipped asserts in clientSendDatabase
 #include <cmath>                              // std::sqrt - calculateObjectPriority's distance
+#include <cstdio>                             // [TEMP] the client-netid-collision replay log
 
 namespace dice {
 namespace hfe {
@@ -302,6 +303,12 @@ void ServerConnection::clientSendDatabase()
                 continue;
             if (networkable->m_networkableId <= 0x281)            // pre-stored/static - already on the client
                 continue;
+
+            // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: client-netid-collision] Lists the ids
+            // replayed to a joining client; a map-load object here collides with the client's own.
+            std::fprintf(stderr, "[TEMP][NETID] replay connection=%d netId=%u template=%s\n",
+                         m_connectionId, networkable->m_networkableId, templ->getName().c_str());
+            std::fflush(stderr);
 
             const unsigned int classId = templ->getClassID();
             if (classId == world::CID_KitTemplate)
