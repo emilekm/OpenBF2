@@ -196,14 +196,21 @@ namespace {
 int*   hitregStats()            { return Vars::getInt("server-hitreg-stats", 0); }
 float* hitregFrameTime()        { return Vars::getFloat("server-frame-time", 0.0f); }
 int*   hitregTickAlignedSleep() { return Vars::getInt("server-tick-aligned-sleep", 0); }
+int*   hitregTrimMerge()        { return Vars::getInt("server-trim-merge", 0); }
+int*   hitregReplayZeroLook()   { return Vars::getInt("server-replay-zero-look", 0); }
 void setHitregStats(int seconds)          { *hitregStats() = seconds; }
 void setHitregFrameTime(float seconds)    { *hitregFrameTime() = seconds; }
 void setHitregTickAlignedSleep(int on)    { *hitregTickAlignedSleep() = on; }
+void setHitregTrimMerge(int on)           { *hitregTrimMerge() = on; }
+void setHitregReplayZeroLook(int on)      { *hitregReplayZeroLook() = on; }
 } // namespace
 BF2_CONSOLE_PROPERTY_FN(stats, int, true, *hitregStats(), setHitregStats, kGameConsoleTag)
 BF2_CONSOLE_PROPERTY_FN(frameTime, float, true, *hitregFrameTime(), setHitregFrameTime, kGameConsoleTag)
 BF2_CONSOLE_PROPERTY_FN(tickAlignedSleep, int, true, *hitregTickAlignedSleep(),
                         setHitregTickAlignedSleep, kGameConsoleTag)
+BF2_CONSOLE_PROPERTY_FN(trimMerge, int, true, *hitregTrimMerge(), setHitregTrimMerge, kGameConsoleTag)
+BF2_CONSOLE_PROPERTY_FN(replayZeroLook, int, true, *hitregReplayZeroLook(), setHitregReplayZeroLook,
+                        kGameConsoleTag)
 
 // Handed to the console registry by ModuleBF2::init, the way the original registers 0x8AD45A8.
 ConsoleObjectList& gameConsoleObjects()

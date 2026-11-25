@@ -3179,6 +3179,28 @@ bool GameServer::isRecordingDemo() const
     return false;
 }
 
+// [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: server-hitreg] Input-queue experiments for the
+// hit-registration investigation, both off by default. server-trim-merge folds each trimmed input
+// into the next one (buttons ORed, mouse-look deltas added) instead of discarding it.
+// server-replay-zero-look replays an empty queue's last input without its mouse-look deltas, so a
+// late input does not turn the player twice. Axes 4/5 (PIMouseLookX/Y) are per-tick look deltas;
+// the other axes are control positions and keep the newest or replayed value.
+namespace {
+int* const s_trimMerge = Vars::getInt("server-trim-merge", 0);
+int* const s_replayZeroLook = Vars::getInt("server-replay-zero-look", 0);
+
+void mergeTrimmedAction(const PlayerAction& trimmed, PlayerAction& next)
+{
+    for (int axis = io::PIMouseLookX; axis <= io::PIMouseLookY; ++axis)
+    {
+        const int sum = next.m_axis[axis] + trimmed.m_axis[axis];
+        next.m_axis[axis] = static_cast<short>(std::max(-32767, std::min(32767, sum)));
+    }
+    next.m_buttonMaskLow  |= trimmed.m_buttonMaskLow;
+    next.m_buttonMaskHigh |= trimmed.m_buttonMaskHigh;
+}
+} // namespace
+
 // : for every connection with a player, trim its ActionBuffer down to sv.actionBufferMaxSize
 // entries (popping the front while larger) and resetTickCounter(); then clear the queued local
 // inputs. A connection without a Player advances to the next map node at 0x80B4BE0; it does not
@@ -3203,7 +3225,12 @@ void GameServer::clearPlayerActions()
         if (player->getActionBuffer()->size() > maxSize)             // something older than the newest?
         {
             while (player->getActionBuffer()->size() > maxSize)      // drop the oldest
-                player->getActionBuffer()->m_entries.pop_front();
+            {
+                std::list<ActionBufferEntry>& entries = player->getActionBuffer()->m_entries;
+                if (*s_trimMerge)                                     // [TEMP] server-hitreg
+                    mergeTrimmedAction(entries.front().m_action, (++entries.begin())->m_action);
+                entries.pop_front();
+            }
             player->resetTickCounter();                              // IPlayer +0xDC
         }
     }
@@ -3446,6 +3473,12 @@ bool GameServer::simulatePlayerUpdate(world::IPlayer* player, float dt)
             else
                 for (int i = 0; i <= 63; ++i)           // give up: neutral input
                     input.inputs[i] = 0.0f;
+
+            if (*s_replayZeroLook)                      // [TEMP] [RETIRE-WHEN: server-hitreg]
+            {
+                input.inputs[io::PIMouseLookX] = 0.0f;
+                input.inputs[io::PIMouseLookY] = 0.0f;
+            }
 
             if (hitreg::enabled())                      // [TEMP] [RETIRE-WHEN: server-hitreg]
                 hitreg::inputReplayed(player->getId(), replays > 29);
