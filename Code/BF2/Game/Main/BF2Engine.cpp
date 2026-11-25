@@ -37,6 +37,7 @@
 #include "StatusMonitor.h"                  // [INFERRED] path
 #include "../../Core/LoadStat.h"
 #include "../GameServer/ServerSettings.h"
+#include "../GameServer/HitregStats.h"      // [TEMP] [RETIRE-WHEN: server-hitreg]
 #include "../../Scene/Object/ObjectTypes/Base/ObjectTemplateManager.h"
 #include "../../Scene/Object/ObjectManager.h"        // world::ObjectManager + the objectManager global
 #include "../../Animation/BoneAnimation/RagDollTemplate.h"   // dice::anim::RagDollTemplate singleton
@@ -1547,6 +1548,13 @@ static double s_prevWallClockTime = 0.0;                        // [INFERRED] na
 static float* const s_sleepOverheadTime =                       // [INFERRED] name
     Vars::getFloat("server-sleep-overhead-time", 0.005f);       // default bits 0x3BA3D70A
 
+// [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: server-hitreg] Frame limiter experiments for the
+// hit-registration investigation. server-frame-time replaces the dedicated frame time when above
+// zero (0.0167 is 60 fps). server-tick-aligned-sleep 1 sleeps until the next tick is due instead,
+// so every frame runs exactly one tick. Both default to retail behavior.
+static float* const s_serverFrameTime = Vars::getFloat("server-frame-time", 0.0f);
+static int* const s_serverTickAlignedSleep = Vars::getInt("server-tick-aligned-sleep", 0);
+
 bool BF2Engine::mainLoop()
 {
     // Runs one frame per call. A pending quit returns false before any frame work.
@@ -1647,6 +1655,8 @@ bool BF2Engine::mainLoop()
     int   ticks       = tickCalculator->compute(g_system->getExactTime());
     int   renderTicks = ticks;                                      // var_170 - input/render count
     float renderDt    = tickCalculator->tickLength;                 // var_16C = calculator's +0x00
+    if (isDedicated() && hitreg::enabled())                         // [TEMP] [RETIRE-WHEN: server-hitreg]
+        hitreg::frame(ticks, g_system->getExactTime() - tickCalculator->time);
     // note: this->dword6C(+0x6C) receives tickLength's RAW bits each frame (0x81374F9, a plain mov -
     // no FPU op), but nothing in this build reads it back. As an unobserved internal write it is
     // documented rather than reproduced (the field stays [UNRESOLVED]).
@@ -1901,9 +1911,23 @@ bool BF2Engine::mainLoop()
 
     // Limit dedicated frames to 30 Hz using time since frame entry. Each sleep-loop
     // iteration subtracts overhead again; a backward clock ends the wait.
-    if (isDedicated())                                              // BF2.exe 0x40CA80: the frame limiter is server-only
+    if (isDedicated() && *s_serverTickAlignedSleep)                 // [TEMP] [RETIRE-WHEN: server-hitreg]
     {
-    double remaining = (1.0 / 30.0)                                 // dbl_8892F10
+        // The tick calculator runs on the exact clock, sampled near frameStartWallClock.
+        const double nextTick = tickCalculator->time + tickCalculator->tickLength;
+        const double exactAtFrameStart = g_system->getExactTime();
+        for (;;)
+        {
+            const double remaining = nextTick - exactAtFrameStart
+                                   - (g_system->getWallClockTime() - frameStartWallClock);
+            if (remaining <= 0.0)
+                break;
+            g_system->sleep(static_cast<int>(std::ceil(remaining * 1000.0)));
+        }
+    }
+    else if (isDedicated())                                         // BF2.exe 0x40CA80: the frame limiter is server-only
+    {
+    double remaining = (*s_serverFrameTime > 0.0f ? *s_serverFrameTime : 1.0 / 30.0)   // dbl_8892F10; [TEMP] server-hitreg
                      - (g_system->getWallClockTime() - frameStartWallClock)
                      - *s_sleepOverheadTime;                        //  fsub m32
     if (remaining > 0.0)

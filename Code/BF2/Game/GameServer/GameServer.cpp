@@ -38,6 +38,7 @@
 #include "../GameEvents/EnterVehicleEvent.h"   // enterVehicle replication
 #include "../Objects/GenericFireArmTemplate.h"     // [CHOSEN, not recovered] proneOnlyReload
 #include "../Objects/Weapons/GenericFireArm.h"
+#include "HitregStats.h"                    // [TEMP] [RETIRE-WHEN: server-hitreg]
 #include "../Objects/Game/Soldier.h"           // setLookUpDownAngle - the wired hook
 #include "../Objects/Game/KitTemplate.h"       // the two CreateKitEvent operands
 #include "../GameEvents/ExitVehicleEvent.h"    // exitVehicle replication
@@ -3191,6 +3192,14 @@ void GameServer::clearPlayerActions()
         if (!player)
             continue;
 
+        // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: server-hitreg]
+        if (hitreg::enabled())
+        {
+            const int queued = player->getActionBuffer()->size();
+            hitreg::trimCheck(player->getId(), queued, std::max(queued - maxSize, 0),
+                              player->getPing(), player->getInterpolationTime());
+        }
+
         if (player->getActionBuffer()->size() > maxSize)             // something older than the newest?
         {
             while (player->getActionBuffer()->size() > maxSize)      // drop the oldest
@@ -3437,6 +3446,9 @@ bool GameServer::simulatePlayerUpdate(world::IPlayer* player, float dt)
             else
                 for (int i = 0; i <= 63; ++i)           // give up: neutral input
                     input.inputs[i] = 0.0f;
+
+            if (hitreg::enabled())                      // [TEMP] [RETIRE-WHEN: server-hitreg]
+                hitreg::inputReplayed(player->getId(), replays > 29);
         }
         else
         {
@@ -3450,6 +3462,9 @@ bool GameServer::simulatePlayerUpdate(world::IPlayer* player, float dt)
 
             buffer->m_entries.erase(buffer->m_entries.begin());
             buffer->m_replayCount = 0;                  // a real action resets the run
+
+            if (hitreg::enabled())                      // [TEMP] [RETIRE-WHEN: server-hitreg]
+                hitreg::inputConsumed(player->getId());
         }
         applyProneOnlyReload(player, input);            // [CHOSEN, not recovered]
         chosen = &input;

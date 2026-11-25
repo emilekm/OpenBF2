@@ -8,6 +8,7 @@
 #include "../../IO/BitStream.h"
 #include "../GameLogic/ActionBuffer.h"           // pushBack - where received input lands
 #include "../Objects/IPlayer.h"
+#include "../GameServer/HitregStats.h"           // [TEMP] [RETIRE-WHEN: server-hitreg]
 
 #include <cstring>                               // memmove - add()'s slide
 
@@ -179,6 +180,8 @@ bool PlayerActionManager::processRcvdPlayerActions(int count)
         {
             m_recvActionHighWater = inputIndex;
             buffer->pushBack(m_recvActions[i]);
+            if (hitreg::enabled())                       // [TEMP] [RETIRE-WHEN: server-hitreg]
+                hitreg::inputReceived(m_player->getId(), inputIndex);
         }
     }
     return true;
