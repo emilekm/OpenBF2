@@ -188,6 +188,23 @@ BF2_CONSOLE_METHOD_0_STATIC_ACTIVE(stopRecording, demoStopRecording, ::dice::hfe
                                    kGameConsoleTag)
 #endif
 
+// [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: server-hitreg] Access-1 front ends for the
+// hit-registration Vars, so the server console and loose .con files can set them; vars.set needs
+// access 2.
+BF2_CONSOLE_OBJECT("hitreg", 1, 0)
+namespace {
+int*   hitregStats()            { return Vars::getInt("server-hitreg-stats", 0); }
+float* hitregFrameTime()        { return Vars::getFloat("server-frame-time", 0.0f); }
+int*   hitregTickAlignedSleep() { return Vars::getInt("server-tick-aligned-sleep", 0); }
+void setHitregStats(int seconds)          { *hitregStats() = seconds; }
+void setHitregFrameTime(float seconds)    { *hitregFrameTime() = seconds; }
+void setHitregTickAlignedSleep(int on)    { *hitregTickAlignedSleep() = on; }
+} // namespace
+BF2_CONSOLE_PROPERTY_FN(stats, int, true, *hitregStats(), setHitregStats, kGameConsoleTag)
+BF2_CONSOLE_PROPERTY_FN(frameTime, float, true, *hitregFrameTime(), setHitregFrameTime, kGameConsoleTag)
+BF2_CONSOLE_PROPERTY_FN(tickAlignedSleep, int, true, *hitregTickAlignedSleep(),
+                        setHitregTickAlignedSleep, kGameConsoleTag)
+
 // Handed to the console registry by ModuleBF2::init, the way the original registers 0x8AD45A8.
 ConsoleObjectList& gameConsoleObjects()
 {
