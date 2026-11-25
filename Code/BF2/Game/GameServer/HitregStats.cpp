@@ -2,10 +2,14 @@
 
 #include "HitregStats.h"
 #include "../Utility/Vars.h"
+#include "../GameLogic/ActionBuffer.h"
+#include "../Objects/IPlayer.h"
 #include "../../Core/System.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <ctime>
 #include <map>
 
 namespace dice {
@@ -65,6 +69,45 @@ struct ServerStats
 
 ServerStats s_server;
 std::map<int, PlayerStats> s_players;
+std::map<int, double> s_lastMark;
+
+const double kMarkInterval = 2.0;       // per-player rate limit for chat marks
+
+// Wall-clock UTC, to match marks and windows with what players report.
+std::string utcNow()
+{
+    const std::time_t now = std::time(0);
+    char buffer[32];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
+    return buffer;
+}
+
+// Returns the note after a "!hr" or "!hitreg" prefix, or false when text is not a mark.
+bool parseMark(const std::string& message, std::string& note)
+{
+    const std::string text = message.substr(0, message.find('\0'));
+    std::string::size_type start = text.find_first_not_of(" \t");
+    if (start == std::string::npos || text[start] != '!')
+        return false;
+    std::string::size_type end = text.find_first_of(" \t", start);
+    if (end == std::string::npos)
+        end = text.size();
+    std::string command = text.substr(start + 1, end - start - 1);
+    for (std::string::size_type i = 0; i < command.size(); ++i)
+        command[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(command[i])));
+    if (command != "hr" && command != "hitreg")
+        return false;
+
+    const std::string::size_type noteStart = text.find_first_not_of(" \t", end);
+    note.clear();
+    for (std::string::size_type i = noteStart; noteStart != std::string::npos && i < text.size(); ++i)
+    {
+        if (static_cast<unsigned char>(text[i]) < 0x20)
+            continue;
+        note += text[i] == '"' ? '\'' : text[i];
+    }
+    return true;
+}
 
 int* intervalSeconds()
 {
@@ -85,9 +128,9 @@ void report(double window)
 {
     const ServerStats& s = s_server;
     std::fprintf(stderr,
-        "[TEMP][HITREG] server window=%.1f frames=%d ticks=%d tickrate=%.4f f0=%d f1=%d f2=%d f3=%d "
+        "[TEMP][HITREG] server utc=%s window=%.1f frames=%d ticks=%d tickrate=%.4f f0=%d f1=%d f2=%d f3=%d "
         "gap40=%d gapmax=%.1f late_avg=%.2f late_max=%.2f late10=%d players=%d\n",
-        window, s.frames, s.ticks, s.ticks / window,
+        utcNow().c_str(), window, s.frames, s.ticks, s.ticks / window,
         s.framesByTicks[0], s.framesByTicks[1], s.framesByTicks[2], s.framesByTicks[3],
         s.longGaps, s.maxGap * 1000.0,
         s.tickFrames ? s.latenessSum * 1000.0 / s.tickFrames : 0.0, s.latenessMax * 1000.0,
@@ -204,6 +247,26 @@ void trimCheck(int playerId, int queued, int dropped, unsigned int ping, unsigne
     }
     p.ping = ping;
     p.interpolation = interpolation;
+}
+
+bool chatMark(world::IPlayer* player, const std::string& text)
+{
+    std::string note;
+    if (!player || !parseMark(text, note))
+        return false;
+
+    const double now = g_system->getWallClockTime();
+    std::map<int, double>::iterator last = s_lastMark.find(player->getId());
+    if (last != s_lastMark.end() && now - last->second < kMarkInterval)
+        return true;
+    s_lastMark[player->getId()] = now;
+
+    std::fprintf(stderr,
+        "[TEMP][HITREG] mark utc=%s id=%d name=\"%s\" note=\"%s\" ping=%u interp=%u queue=%d\n",
+        utcNow().c_str(), player->getId(), player->getName().c_str(), note.c_str(),
+        player->getPing(), player->getInterpolationTime(), player->getActionBuffer()->size());
+    std::fflush(stderr);
+    return true;
 }
 
 } // namespace hitreg

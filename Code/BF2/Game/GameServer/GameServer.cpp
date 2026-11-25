@@ -4020,6 +4020,14 @@ void GameServer::sendRadioMessageToAI(IEventWrapper&, int)
 // which receives sender, message, channel name, and flags.
 void GameServer::handleStringReceivedEvent(StringReceivedEvent* event, void*)
 {
+    // [TEMP] [CHOSEN, not recovered] [RETIRE-WHEN: server-hitreg] A player's "!hr <note>" chat
+    // line marks good or bad hit registration in the log and goes no further.
+    if (event->m_channel != 12 && event->m_channel != 13
+        && hitreg::chatMark(world::playerManager->getPlayerFromId(event->m_senderId),
+                            std::string(reinterpret_cast<const char*>(event->m_message),
+                                        event->m_messageLength)))
+        return;
+
     const int senderId = event->m_senderId;                                  // +0x1C
     if (static_cast<unsigned int>(event->m_channel - 12) <= 1u)              // 12 or 13
         event->m_senderId = -1;

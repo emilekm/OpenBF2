@@ -7,8 +7,13 @@
 #ifndef GAME_GAMESERVER_HITREGSTATS_H
 #define GAME_GAMESERVER_HITREGSTATS_H
 
+#include <string>
+
 namespace dice {
 namespace hfe {
+
+namespace world { class IPlayer; }
+
 namespace hitreg {
 
 bool enabled();
@@ -28,6 +33,11 @@ void inputReplayed(int playerId, bool neutral);
 // The ActionBuffer trim check after each server update: queue size before the trim and how
 // many inputs it dropped.
 void trimCheck(int playerId, int queued, int dropped, unsigned int ping, unsigned int interpolation);
+
+// A chat line starting with "!hr" or "!hitreg" is a player's mark of good or bad hit registration:
+// it is logged as a `[TEMP][HITREG] mark` line with the rest of the text as the note, whether or
+// not the stats are enabled. Returns true when the line was a mark, so the caller drops it.
+bool chatMark(world::IPlayer* player, const std::string& text);
 
 } // namespace hitreg
 } // namespace hfe
